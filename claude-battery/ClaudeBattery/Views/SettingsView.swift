@@ -188,8 +188,8 @@ struct SettingsView: View {
 
             Toggle("Launch at login", isOn: launchAtLoginBinding)
                 .font(.callout)
-                .onChange(of: prefsManager.preferences.launchAtLogin) { enabled in
-                    setLaunchAtLogin(enabled)
+                .onChange(of: prefsManager.preferences.launchAtLogin) { _, newValue in
+                    setLaunchAtLogin(newValue)
                 }
         }
     }
@@ -206,56 +206,56 @@ struct SettingsView: View {
     private var claudeCodePathBinding: Binding<String> {
         Binding(
             get: { prefsManager.preferences.claudeCodePath },
-            set: { prefsManager.update { $0.claudeCodePath = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.claudeCodePath = newValue } }
         )
     }
 
     private var manualPlanBinding: Binding<ClaudePlan> {
         Binding(
             get: { prefsManager.preferences.manualPlan },
-            set: { prefsManager.update { $0.manualPlan = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.manualPlan = newValue } }
         )
     }
 
     private var customTokensBinding: Binding<Int> {
         Binding(
             get: { prefsManager.preferences.manualCustomTokens },
-            set: { prefsManager.update { $0.manualCustomTokens = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.manualCustomTokens = newValue } }
         )
     }
 
     private var manualUsedBinding: Binding<Int> {
         Binding(
             get: { prefsManager.preferences.manualUsedTokens },
-            set: { prefsManager.update { $0.manualUsedTokens = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.manualUsedTokens = newValue } }
         )
     }
 
     private var manualResetDateBinding: Binding<Date> {
         Binding(
             get: { prefsManager.preferences.manualResetDate },
-            set: { prefsManager.update { $0.manualResetDate = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.manualResetDate = newValue } }
         )
     }
 
     private var refreshIntervalBinding: Binding<Double> {
         Binding(
             get: { prefsManager.preferences.refreshInterval },
-            set: { prefsManager.update { $0.refreshInterval = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.refreshInterval = newValue } }
         )
     }
 
     private var showEstimatesBinding: Binding<Bool> {
         Binding(
             get: { prefsManager.preferences.showPromptEstimates },
-            set: { prefsManager.update { $0.showPromptEstimates = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.showPromptEstimates = newValue } }
         )
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
         Binding(
             get: { prefsManager.preferences.launchAtLogin },
-            set: { prefsManager.update { $0.launchAtLogin = $1 } }($0)
+            set: { newValue in prefsManager.update { $0.launchAtLogin = newValue } }
         )
     }
 
