@@ -8,13 +8,19 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            if let data = viewModel.usageData {
+
+            // Show onboarding if bridge not set up and hook bridge is selected source
+            if !viewModel.isBridgeSetUp &&
+               PreferencesManager.shared.preferences.dataSource == .hookBridge {
+                OnboardingView(viewModel: viewModel)
+            } else if let data = viewModel.usageData {
                 content(data: data)
             } else if viewModel.isLoading {
                 loadingView
             } else {
                 emptyStateView
             }
+
             Divider()
             footer
         }
@@ -67,13 +73,26 @@ struct PopoverView: View {
 
     private func usageSection(data: UsageData) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("Usage")
+            HStack {
+                sectionLabel("Usage")
+                Spacer()
+                // Data accuracy badge
+                HStack(spacing: 3) {
+                    Image(systemName: data.isExact ? "checkmark.seal.fill" : "exclamationmark.triangle")
+                        .font(.caption2)
+                        .foregroundColor(data.isExact ? .green : .orange)
+                    Text(data.isExact ? data.windowLabel : "~Estimate")
+                        .font(.caption2)
+                        .foregroundColor(data.isExact ? .green : .orange)
+                }
+                .padding(.trailing, 16)
+            }
             UsageGaugeView(percent: data.usagePercent, status: data.status)
                 .padding(.horizontal, 16)
             HStack {
-                statRow(label: "Used", value: formatTokens(data.usedTokens))
+                statRow(label: "Used", value: "\(Int(data.usagePercent * 100))%")
                 Spacer()
-                statRow(label: "Remaining", value: formatTokens(data.remainingTokens))
+                statRow(label: "Remaining", value: "\(Int(data.remainingPercent * 100))%")
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(data.status.label)
