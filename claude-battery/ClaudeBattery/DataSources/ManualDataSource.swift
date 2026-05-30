@@ -20,7 +20,8 @@ final class ManualDataSource: UsageDataSource {
             usedTokens: p.manualUsedTokens,
             totalTokens: total,
             resetDate: p.manualResetDate,
-            lastUpdated: Date()
+            lastUpdated: Date(),
+            dataSource: .manual
         )
     }
 }
