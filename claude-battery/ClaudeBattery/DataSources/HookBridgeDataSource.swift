@@ -94,6 +94,8 @@ final class HookBridgeDataSource: UsageDataSource {
     }
 
     static func installBridgeScript() throws {
+        let claudeDir = ("~/.claude" as NSString).expandingTildeInPath
+        try FileManager.default.createDirectory(atPath: claudeDir, withIntermediateDirectories: true)
         let scriptPath = (bridgeScriptPath as NSString).expandingTildeInPath
         let script = bridgeScriptContent
         try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
