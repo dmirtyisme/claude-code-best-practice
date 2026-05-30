@@ -74,14 +74,57 @@ struct PromptEstimates {
     }
 }
 
+/// Which rolling window the data represents
+enum RateLimitWindow {
+    case fiveHour
+    case sevenDay
+    case manual
+    case localEstimate  // JSONL aggregation — not a real plan limit
+}
+
 struct UsageData {
     let usedTokens: Int
     let totalTokens: Int
     let resetDate: Date
     let lastUpdated: Date
 
+    /// When non-nil, this value from the real Anthropic API header overrides
+    /// the computed usedTokens/totalTokens ratio. This is the source of truth.
+    let usedPercentageOverride: Double?
+
+    /// Which window type this data represents — affects UI labeling
+    let dataSource: RateLimitWindow
+
+    init(
+        usedTokens: Int,
+        totalTokens: Int,
+        resetDate: Date,
+        lastUpdated: Date,
+        usedPercentageOverride: Double? = nil,
+        dataSource: RateLimitWindow = .manual
+    ) {
+        self.usedTokens = usedTokens
+        self.totalTokens = totalTokens
+        self.resetDate = resetDate
+        self.lastUpdated = lastUpdated
+        self.usedPercentageOverride = usedPercentageOverride
+        self.dataSource = dataSource
+    }
+
+    /// The authoritative usage fraction (0.0–1.0).
+    /// Uses real API header value when available, falls back to computed ratio.
+    var usagePercent: Double {
+        if let override = usedPercentageOverride { return min(1.0, max(0, override)) }
+        guard totalTokens > 0 else { return 0.0 }
+        return min(1.0, Double(usedTokens) / Double(totalTokens))
+    }
+
+    var remainingPercent: Double { max(0, 1.0 - usagePercent) }
+
     var remainingTokens: Int { max(0, totalTokens - usedTokens) }
-    var usagePercent: Double { totalTokens > 0 ? Double(usedTokens) / Double(totalTokens) : 0.0 }
+
+    /// True when this percentage came from Anthropic's own headers — not an estimate
+    var isExact: Bool { usedPercentageOverride != nil }
 
     var status: UsageStatus {
         switch usagePercent {
@@ -104,13 +147,22 @@ struct UsageData {
         return "\(minutes)m"
     }
 
-    // Placeholder with manual plan defaults
-    static func placeholder(planTokens: Int = 1_000_000) -> UsageData {
+    var windowLabel: String {
+        switch dataSource {
+        case .fiveHour:      return "5h window"
+        case .sevenDay:      return "7d window"
+        case .manual:        return "Manual"
+        case .localEstimate: return "Estimate"
+        }
+    }
+
+    static func placeholder() -> UsageData {
         UsageData(
             usedTokens: 0,
-            totalTokens: planTokens,
+            totalTokens: 100,
             resetDate: Calendar.current.date(byAdding: .hour, value: 5, to: Date())!,
-            lastUpdated: Date()
+            lastUpdated: Date(),
+            dataSource: .manual
         )
     }
 }
