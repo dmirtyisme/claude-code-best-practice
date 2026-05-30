@@ -43,9 +43,10 @@ final class ClaudeCodeDataSource: UsageDataSource {
         // Here we return raw token count; ViewModel will overlay the plan limit
         return UsageData(
             usedTokens: usedTokens,
-            totalTokens: 0,   // Caller must set totalTokens from plan prefs
+            totalTokens: 0,
             resetDate: resetDate,
-            lastUpdated: Date()
+            lastUpdated: Date(),
+            dataSource: .localEstimate
         )
     }
 
