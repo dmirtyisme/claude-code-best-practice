@@ -1,0 +1,18 @@
+// !$*UTF8*$!
+// Xcode project file — open ClaudeBattery.xcodeproj in Xcode 15+
+// Minimum deployment: macOS 13.0
+// Swift 5.9
+//
+// IMPORTANT: This file was generated as a reference skeleton.
+// The canonical way to use it:
+//   1. Open Xcode → File → New → Project → macOS → App
+//   2. Set Product Name: ClaudeBattery
+//   3. Bundle ID: com.yourname.claude-battery
+//   4. Interface: SwiftUI  |  Life Cycle: AppKit App Delegate
+//   5. Deployment target: macOS 13.0
+//   6. Add all .swift files from ClaudeBattery/ to the target
+//   7. Set LSUIElement = YES in Info.plist (already done)
+//   8. Disable App Sandbox in Entitlements (needed for ~/.claude access)
+//   9. Build & Run
+//
+// Dependencies: None — pure Swift/SwiftUI/AppKit, no SPM packages required.
