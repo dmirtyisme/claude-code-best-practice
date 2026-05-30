@@ -73,8 +73,24 @@ final class HookBridgeDataSource: UsageDataSource {
 
     // MARK: - Setup helpers
 
+    /// True when the bridge SCRIPT is installed — does not imply data has been received yet.
     var isBridgeInstalled: Bool {
-        FileManager.default.fileExists(atPath: stateFilePath)
+        let scriptPath = (Self.bridgeScriptPath as NSString).expandingTildeInPath
+        return FileManager.default.fileExists(atPath: scriptPath)
+    }
+
+    var currentBridgeStatus: BridgeStatus {
+        let scriptPath = (Self.bridgeScriptPath as NSString).expandingTildeInPath
+        guard FileManager.default.fileExists(atPath: scriptPath) else {
+            return .notInstalled
+        }
+        guard FileManager.default.fileExists(atPath: stateFilePath),
+              let data = try? Data(contentsOf: URL(fileURLWithPath: stateFilePath)),
+              let state = try? JSONDecoder().decode(UsageStateFile.self, from: data) else {
+            return .waitingForData
+        }
+        let age = Int(-Date(timeIntervalSince1970: state.updated_at).timeIntervalSinceNow)
+        return age > Int(Self.staleThresholdSeconds) ? .stale(ageSeconds: age) : .connected
     }
 
     static func installBridgeScript() throws {
@@ -85,7 +101,7 @@ final class HookBridgeDataSource: UsageDataSource {
         // Make executable
         var attrs = try FileManager.default.attributesOfItem(atPath: scriptPath)
         attrs[.posixPermissions] = 0o755
-        try FileManager.default.setAttributes(attrs, ofItemAt: URL(fileURLWithPath: scriptPath))
+        try FileManager.default.setAttributes(attrs, ofItemAtPath: scriptPath)
     }
 
     static func addToClaudeSettings() throws {
@@ -146,6 +162,28 @@ final class HookBridgeDataSource: UsageDataSource {
       printf "7d:%.0f%%" "$seven_pct"
     fi
     """
+}
+
+// MARK: - Bridge status
+
+enum BridgeStatus: Equatable {
+    case notInstalled       // Script file not present — show onboarding
+    case waitingForData     // Script installed, state file not yet written
+    case connected          // State file present and fresh
+    case stale(ageSeconds: Int)  // State file present but older than staleThreshold
+
+    var isInstalled: Bool { self != .notInstalled }
+
+    var statusLabel: String {
+        switch self {
+        case .notInstalled:   return "Not installed"
+        case .waitingForData: return "Waiting for data"
+        case .connected:      return "Connected"
+        case .stale(let age):
+            let h = age / 3600; let m = (age % 3600) / 60
+            return h > 0 ? "Stale (\(h)h \(m)m)" : "Stale (\(m)m)"
+        }
+    }
 }
 
 // MARK: - Errors
