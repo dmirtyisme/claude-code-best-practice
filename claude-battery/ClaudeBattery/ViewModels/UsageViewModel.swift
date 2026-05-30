@@ -8,6 +8,7 @@ final class UsageViewModel: ObservableObject {
     @Published private(set) var burnRate: BurnRate = .normal
     @Published private(set) var errorMessage: String?
     @Published private(set) var isLoading: Bool = false
+    @Published private(set) var isBridgeSetUp: Bool = false
 
     private var burnCalculator = BurnRateCalculator()
     private var refreshTimer: AnyCancellable?
@@ -16,6 +17,7 @@ final class UsageViewModel: ObservableObject {
 
     init(prefsManager: PreferencesManager = .shared) {
         self.prefsManager = prefsManager
+        isBridgeSetUp = HookBridgeDataSource().isBridgeInstalled
         subscribeToPrefs()
         Task { await refresh() }
     }
@@ -24,25 +26,30 @@ final class UsageViewModel: ObservableObject {
 
     var menuBarTitle: String {
         guard let data = usageData else { return "⏳" }
+        if !isBridgeSetUp && prefsManager.preferences.dataSource == .hookBridge {
+            return "⚙️"
+        }
         let prefs = prefsManager.preferences
-        let mode = effectiveDisplayMode(prefs: prefs, data: data)
+        return menuBarString(prefs: prefs, data: data)
+    }
 
+    private func menuBarString(prefs: AppPreferences, data: UsageData) -> String {
+        let mode = effectiveDisplayMode(prefs: prefs, data: data)
+        let pct = Int(data.usagePercent * 100)
         switch mode {
         case .percentage:
-            return "\(data.status.emoji) \(Int(data.usagePercent * 100))%"
+            return "\(data.status.emoji) \(pct)%"
         case .countdown:
             return "⏳ \(data.resetCountdownString)"
         case .compact:
             return data.status.emoji
         case .smart:
-            // Should not reach here after effectiveDisplayMode resolves it
-            return "\(data.status.emoji) \(Int(data.usagePercent * 100))%"
+            return "\(data.status.emoji) \(pct)%"
         }
     }
 
     private func effectiveDisplayMode(prefs: AppPreferences, data: UsageData) -> DisplayMode {
         if prefs.displayMode != .smart { return prefs.displayMode }
-        // Smart mode: show countdown when high usage or near reset, else percentage
         return data.usagePercent >= 0.70 || data.timeUntilReset < 3600 ? .countdown : .percentage
     }
 
@@ -52,28 +59,27 @@ final class UsageViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
+        isBridgeSetUp = HookBridgeDataSource().isBridgeInstalled
+
         let source = makeDataSource()
         do {
-            var data = try await source.fetch()
-
-            // For Claude Code source, overlay the plan token limit from prefs
-            if prefsManager.preferences.dataSource == .claudeCode {
-                let planTokens = prefsManager.preferences.effectiveTotalTokens
-                data = UsageData(
-                    usedTokens: data.usedTokens,
-                    totalTokens: planTokens,
-                    resetDate: data.resetDate,
-                    lastUpdated: data.lastUpdated
-                )
-            }
-
-            burnCalculator.record(tokens: data.usedTokens)
-            burnRate = burnCalculator.burnRate(currentUsed: data.usedTokens)
+            let data = try await source.fetch()
+            burnCalculator.record(tokens: Int(data.usagePercent * 1000))
+            burnRate = burnCalculator.burnRateFromPercent(currentPercent: data.usagePercent)
             usageData = data
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Bridge setup
+
+    func installBridge() async throws {
+        try HookBridgeDataSource.installBridgeScript()
+        try HookBridgeDataSource.addToClaudeSettings()
+        isBridgeSetUp = true
+        prefsManager.update { $0.dataSource = .hookBridge }
     }
 
     // MARK: - Timer management
@@ -111,10 +117,22 @@ final class UsageViewModel: ObservableObject {
     private func makeDataSource() -> any UsageDataSource {
         let p = prefsManager.preferences
         switch p.dataSource {
+        case .hookBridge:
+            return HookBridgeDataSource()
         case .claudeCode:
             return ClaudeCodeDataSource(projectsPath: p.claudeCodePath)
         case .manual:
             return ManualDataSource(prefsManager: prefsManager)
         }
+    }
+}
+
+// MARK: - BurnRateCalculator extension for percentage-based tracking
+
+extension BurnRateCalculator {
+    mutating func burnRateFromPercent(currentPercent: Double) -> BurnRate {
+        let syntheticTokens = Int(currentPercent * 1000)
+        record(tokens: syntheticTokens)
+        return burnRate(currentUsed: syntheticTokens)
     }
 }
