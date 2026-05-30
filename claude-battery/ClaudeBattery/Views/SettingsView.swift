@@ -188,7 +188,7 @@ struct SettingsView: View {
 
             Toggle("Launch at login", isOn: launchAtLoginBinding)
                 .font(.callout)
-                .onChange(of: prefsManager.preferences.launchAtLogin) { _, newValue in
+                .onChange(of: prefsManager.preferences.launchAtLogin) { newValue in
                     setLaunchAtLogin(newValue)
                 }
         }
