@@ -8,7 +8,7 @@ final class UsageViewModel: ObservableObject {
     @Published private(set) var burnRate: BurnRate = .normal
     @Published private(set) var errorMessage: String?
     @Published private(set) var isLoading: Bool = false
-    @Published private(set) var isBridgeSetUp: Bool = false
+    @Published private(set) var bridgeStatus: BridgeStatus = .notInstalled
 
     private var burnCalculator = BurnRateCalculator()
     private var refreshTimer: AnyCancellable?
@@ -17,7 +17,7 @@ final class UsageViewModel: ObservableObject {
 
     init(prefsManager: PreferencesManager = .shared) {
         self.prefsManager = prefsManager
-        isBridgeSetUp = HookBridgeDataSource().isBridgeInstalled
+        bridgeStatus = HookBridgeDataSource().currentBridgeStatus
         subscribeToPrefs()
         Task { await refresh() }
     }
@@ -26,7 +26,7 @@ final class UsageViewModel: ObservableObject {
 
     var menuBarTitle: String {
         guard let data = usageData else { return "⏳" }
-        if !isBridgeSetUp && prefsManager.preferences.dataSource == .hookBridge {
+        if !bridgeStatus.isInstalled && prefsManager.preferences.dataSource == .hookBridge {
             return "⚙️"
         }
         let prefs = prefsManager.preferences
@@ -59,12 +59,11 @@ final class UsageViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
-        isBridgeSetUp = HookBridgeDataSource().isBridgeInstalled
+        bridgeStatus = HookBridgeDataSource().currentBridgeStatus
 
         let source = makeDataSource()
         do {
             let data = try await source.fetch()
-            burnCalculator.record(tokens: Int(data.usagePercent * 1000))
             burnRate = burnCalculator.burnRateFromPercent(currentPercent: data.usagePercent)
             usageData = data
             errorMessage = nil
@@ -78,7 +77,7 @@ final class UsageViewModel: ObservableObject {
     func installBridge() async throws {
         try HookBridgeDataSource.installBridgeScript()
         try HookBridgeDataSource.addToClaudeSettings()
-        isBridgeSetUp = true
+        bridgeStatus = .waitingForData
         prefsManager.update { $0.dataSource = .hookBridge }
     }
 
