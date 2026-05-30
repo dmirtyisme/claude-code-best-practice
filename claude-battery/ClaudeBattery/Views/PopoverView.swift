@@ -9,10 +9,28 @@ struct PopoverView: View {
             header
             Divider()
 
-            // Show onboarding if bridge not set up and hook bridge is selected source
-            if !viewModel.isBridgeSetUp &&
-               PreferencesManager.shared.preferences.dataSource == .hookBridge {
-                OnboardingView(viewModel: viewModel)
+            if PreferencesManager.shared.preferences.dataSource == .hookBridge {
+                switch viewModel.bridgeStatus {
+                case .notInstalled:
+                    OnboardingView(viewModel: viewModel)
+                case .waitingForData:
+                    waitingForDataView
+                case .stale:
+                    // Show stale data if available, otherwise show the error
+                    if let data = viewModel.usageData {
+                        content(data: data)
+                    } else {
+                        bridgeErrorView
+                    }
+                case .connected:
+                    if let data = viewModel.usageData {
+                        content(data: data)
+                    } else if viewModel.isLoading {
+                        loadingView
+                    } else {
+                        bridgeErrorView
+                    }
+                }
             } else if let data = viewModel.usageData {
                 content(data: data)
             } else if viewModel.isLoading {
@@ -63,7 +81,12 @@ struct PopoverView: View {
             resetSection(data: data)
             Divider().padding(.horizontal, 16)
             burnSection(data: data)
-            if PreferencesManager.shared.preferences.showPromptEstimates {
+            // Prompt estimates are only meaningful for local-estimate sources (JSONL analytics)
+            // and manual mode — bridge data uses a synthetic 100K denominator.
+            let showEstimates = PreferencesManager.shared.preferences.showPromptEstimates
+                && data.dataSource != .fiveHour
+                && data.dataSource != .sevenDay
+            if showEstimates {
                 Divider().padding(.horizontal, 16)
                 estimatesSection(data: data)
             }
@@ -76,7 +99,6 @@ struct PopoverView: View {
             HStack {
                 sectionLabel("Usage")
                 Spacer()
-                // Data accuracy badge
                 HStack(spacing: 3) {
                     Image(systemName: data.isExact ? "checkmark.seal.fill" : "exclamationmark.triangle")
                         .font(.caption2)
@@ -101,6 +123,18 @@ struct PopoverView: View {
                 }
             }
             .padding(.horizontal, 16)
+
+            if case .stale(let age) = viewModel.bridgeStatus {
+                HStack(spacing: 4) {
+                    Image(systemName: "clock.badge.exclamationmark")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text("Data is \(staleAgeString(age)) old — start a Claude Code session to refresh")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                .padding(.horizontal, 16)
+            }
         }
     }
 
@@ -141,6 +175,39 @@ struct PopoverView: View {
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    private var waitingForDataView: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .font(.largeTitle)
+                .foregroundColor(.secondary)
+            Text("Waiting for Claude Code usage data")
+                .font(.callout.bold())
+                .multilineTextAlignment(.center)
+            Text("Make one request in Claude Code to populate the usage bar.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .padding(.horizontal, 16)
+    }
+
+    private var bridgeErrorView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "questionmark.circle")
+                .font(.largeTitle)
+                .foregroundColor(.secondary)
+            Text(viewModel.errorMessage ?? "No data yet")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .padding(.horizontal, 16)
     }
 
     private var loadingView: some View {
@@ -233,10 +300,9 @@ struct PopoverView: View {
         }
     }
 
-    private func formatTokens(_ n: Int) -> String {
-        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
-        if n >= 1_000     { return String(format: "%.1fK", Double(n) / 1_000) }
-        return "\(n)"
+    private func staleAgeString(_ age: Int) -> String {
+        let h = age / 3600; let m = (age % 3600) / 60
+        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 
     private func resetTimeString(_ date: Date) -> String {
