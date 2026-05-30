@@ -1,26 +1,39 @@
 import Foundation
 
 enum DataSourceType: String, CaseIterable, Identifiable {
-    case claudeCode = "claudeCode"
-    case manual     = "manual"
+    /// Primary: reads the exact used_percentage from the Anthropic API response headers
+    /// via a statusLine bridge hook installed in ~/.claude/settings.json.
+    case hookBridge  = "hookBridge"
+
+    /// Secondary analytics: aggregates token counts from ~/.claude/projects JSONL.
+    /// Shows consumption history but NOT plan utilization percentage.
+    case claudeCode  = "claudeCode"
+
+    /// Fallback: user manually enters current usage and reset time.
+    case manual      = "manual"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .claudeCode: return "Claude Code (Local)"
+        case .hookBridge: return "Claude Code (Real-time)"
+        case .claudeCode: return "Local Analytics (Estimated)"
         case .manual:     return "Manual"
         }
     }
 
     var description: String {
         switch self {
+        case .hookBridge:
+            return "Reads the exact usage % from Claude Code — the same number shown in Claude's own limiter bar. Requires one-time hook setup."
         case .claudeCode:
-            return "Reads token usage from ~/.claude/projects JSONL files. Shows today's consumption."
+            return "Aggregates tokens from ~/.claude project files. Shows consumption and burn rate but cannot show accurate plan limit %."
         case .manual:
-            return "You enter your plan limit, current usage, and reset time manually."
+            return "You enter your plan limit, current usage, and reset time. Always works, even offline."
         }
     }
+
+    var isExactSource: Bool { self == .hookBridge || self == .manual }
 }
 
 enum DisplayMode: String, CaseIterable, Identifiable {
@@ -93,7 +106,7 @@ enum ClaudePlan: String, CaseIterable, Identifiable {
 }
 
 struct AppPreferences {
-    var dataSource: DataSourceType = .claudeCode
+    var dataSource: DataSourceType = .hookBridge
     var displayMode: DisplayMode   = .smart
     var refreshInterval: TimeInterval = 60
     var launchAtLogin: Bool        = false
