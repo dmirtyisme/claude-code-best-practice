@@ -114,7 +114,7 @@ struct PopoverView: View {
             HStack {
                 statRow(label: "Used", value: "\(Int(data.usagePercent * 100))%")
                 Spacer()
-                statRow(label: "Remaining", value: "\(Int(data.remainingPercent * 100))%")
+                statRow(label: "Remaining", value: "\(100 - Int(data.usagePercent * 100))%")
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(data.status.label)
