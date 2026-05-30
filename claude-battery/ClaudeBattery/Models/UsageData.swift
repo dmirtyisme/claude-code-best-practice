@@ -123,8 +123,8 @@ struct UsageData {
 
     var remainingTokens: Int { max(0, totalTokens - usedTokens) }
 
-    /// True when this percentage came from Anthropic's own headers — not an estimate
-    var isExact: Bool { usedPercentageOverride != nil }
+    /// True when this percentage is direct (API headers or user-supplied), not estimated by the app.
+    var isExact: Bool { usedPercentageOverride != nil || dataSource == .manual }
 
     var status: UsageStatus {
         switch usagePercent {
