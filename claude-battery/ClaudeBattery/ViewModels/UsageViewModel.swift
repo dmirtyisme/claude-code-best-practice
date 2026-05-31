@@ -1,5 +1,6 @@
-import Foundation
+import AppKit
 import Combine
+import Foundation
 
 @MainActor
 final class UsageViewModel: ObservableObject {
@@ -22,30 +23,79 @@ final class UsageViewModel: ObservableObject {
         Task { await refresh() }
     }
 
-    // MARK: - Menu bar label
+    // MARK: - Menu bar rendering
 
-    var menuBarTitle: String {
-        guard let data = usageData else { return "⏳" }
-        if !bridgeStatus.isInstalled && prefsManager.preferences.dataSource == .hookBridge {
-            return "⚙️"
-        }
-        let prefs = prefsManager.preferences
-        return menuBarString(prefs: prefs, data: data)
+    /// Arc image representing current usage.
+    var menuBarImage: NSImage {
+        guard let data = usageData else { return ArcStatusImage.makeIdle() }
+        return ArcStatusImage.make(percent: data.usagePercent, status: data.status)
     }
 
-    private func menuBarString(prefs: AppPreferences, data: UsageData) -> String {
-        let mode = effectiveDisplayMode(prefs: prefs, data: data)
-        let pct = Int(data.usagePercent * 100)
+    /// Compact text label shown to the right of the arc.
+    var menuBarAttributedLabel: NSAttributedString {
+        guard let data = usageData else { return NSAttributedString() }
+        let text = menuBarLabelText(for: data)
+        guard !text.isEmpty else { return NSAttributedString() }
+        return NSAttributedString(string: text, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: menuBarLabelColor(for: data.status)
+        ])
+    }
+
+    /// Full detail tooltip shown on hover.
+    var menuBarToolTip: String {
+        guard let data = usageData else { return "Claude Battery — waiting for data" }
+        let pct       = max(0, Int(data.usagePercent * 100))
+        let remaining = max(0, 100 - pct)
+        let countdown = formatCountdown(data.timeUntilReset)
+        let updated   = relativeTime(data.lastUpdated)
+        return "Used: \(pct)%\nRemaining: \(remaining)%\nResets in: \(countdown)\nLast updated: \(updated)"
+    }
+
+    // MARK: - Private menu bar helpers
+
+    private func menuBarLabelText(for data: UsageData) -> String {
+        let prefs = prefsManager.preferences
+        let mode  = effectiveDisplayMode(prefs: prefs, data: data)
+        let pct   = max(0, Int(data.usagePercent * 100))
+
         switch mode {
         case .percentage:
-            return "\(data.status.emoji) \(pct)%"
+            return "\(pct)%"
         case .countdown:
-            return "⏳ \(data.resetCountdownString)"
+            return formatCountdown(data.timeUntilReset)
         case .compact:
-            return data.status.emoji
+            return ""
         case .smart:
-            return "\(data.status.emoji) \(pct)%"
+            let cd = formatCountdown(data.timeUntilReset)
+            if data.usagePercent >= 0.70 || data.timeUntilReset < 3600 {
+                return "\(pct)% \(cd)"
+            }
+            return "\(pct)%"
         }
+    }
+
+    private func menuBarLabelColor(for status: UsageStatus) -> NSColor {
+        switch status {
+        case .safe:                return .labelColor
+        case .medium:              return .systemOrange
+        case .critical, .depleted: return .systemRed
+        }
+    }
+
+    /// H:MM format (hours and minutes).  e.g. "4:59", "0:42", "12:05"
+    private func formatCountdown(_ seconds: TimeInterval) -> String {
+        let totalMinutes = max(0, Int(seconds) / 60)
+        let hours   = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return String(format: "%d:%02d", hours, minutes)
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let seconds = Int(-date.timeIntervalSinceNow)
+        if seconds < 60   { return "just now" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        return "\(seconds / 3600)h ago"
     }
 
     private func effectiveDisplayMode(prefs: AppPreferences, data: UsageData) -> DisplayMode {
