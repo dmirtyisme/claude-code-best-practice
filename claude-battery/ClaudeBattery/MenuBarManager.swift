@@ -28,7 +28,11 @@ final class MenuBarManager {
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
-        button.title = "⏳"
+        // Idle arc until first data arrives — no emoji, no text
+        button.image = ArcStatusImage.makeIdle()
+        button.imagePosition = .imageLeft
+        button.attributedTitle = NSAttributedString()
+        button.toolTip = "Claude Battery — loading"
         button.action = #selector(togglePopover)
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -110,26 +114,40 @@ final class MenuBarManager {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    // MARK: - Live title updates
+    // MARK: - Live menu bar updates
 
     private func subscribeToUpdates() {
+        // Redraw on any state change that affects the menu bar
         viewModel.$usageData
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updateTitle()
-            }
+            .sink { [weak self] _ in self?.updateMenuBar() }
             .store(in: &cancellables)
 
         viewModel.$errorMessage
             .receive(on: RunLoop.main)
-            .sink { [weak self] error in
-                if error != nil { self?.statusItem.button?.title = "⚠️" }
-            }
+            .sink { [weak self] _ in self?.updateMenuBar() }
+            .store(in: &cancellables)
+
+        viewModel.$bridgeStatus
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateMenuBar() }
             .store(in: &cancellables)
     }
 
-    private func updateTitle() {
-        statusItem.button?.title = viewModel.menuBarTitle
+    private func updateMenuBar() {
+        guard let button = statusItem.button else { return }
+
+        // Arc image — idle (track only) when no data yet
+        let img = viewModel.menuBarImage
+        img.size = NSSize(width: 16, height: 16)
+        button.image = img
+        button.imagePosition = .imageLeft
+
+        // Compact text label (empty string for compact display mode)
+        button.attributedTitle = viewModel.menuBarAttributedLabel
+
+        // Full-detail tooltip on hover
+        button.toolTip = viewModel.menuBarToolTip
     }
 }
 
