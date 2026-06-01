@@ -49,7 +49,8 @@ final class UsageViewModel: ObservableObject {
         let remaining = max(0, 100 - pct)
         let countdown = formatCountdown(data.timeUntilReset)
         let updated   = relativeTime(data.lastUpdated)
-        return "Used: \(pct)%\nRemaining: \(remaining)%\nResets in: \(countdown)\nLast updated: \(updated)"
+        let accuracy = data.isExact ? "" : " (estimated)"
+        return "Used: \(pct)%  ·  Remaining: \(remaining)%\(accuracy)\nResets in: \(countdown)\nUpdated: \(updated)"
     }
 
     // MARK: - Private menu bar helpers
@@ -69,7 +70,7 @@ final class UsageViewModel: ObservableObject {
         case .smart:
             let cd = formatCountdown(data.timeUntilReset)
             if data.usagePercent >= 0.70 || data.timeUntilReset < 3600 {
-                return "\(pct)% \(cd)"
+                return "\(pct)% · \(cd)"
             }
             return "\(pct)%"
         }
@@ -99,8 +100,7 @@ final class UsageViewModel: ObservableObject {
     }
 
     private func effectiveDisplayMode(prefs: AppPreferences, data: UsageData) -> DisplayMode {
-        if prefs.displayMode != .smart { return prefs.displayMode }
-        return data.usagePercent >= 0.70 || data.timeUntilReset < 3600 ? .countdown : .percentage
+        prefs.displayMode
     }
 
     // MARK: - Refresh
