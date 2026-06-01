@@ -23,13 +23,13 @@ enum ArcStatusImage {
 
     // MARK: - Public API
 
-    static func make(percent: Double, status: UsageStatus, size: CGFloat = 16) -> NSImage {
+    static func make(percent: Double, status: UsageStatus, monochrome: Bool = false, size: CGFloat = 16) -> NSImage {
         let pct = max(0.0, min(1.0, percent))
         let img = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             let geo = Geo(rect: rect, size: size)
             drawTrack(geo: geo, color: .tertiaryLabelColor)
             if pct > 0.005 {
-                drawFill(geo: geo, percent: pct, color: fillColor(for: status))
+                drawFill(geo: geo, percent: pct, color: fillColor(for: status, monochrome: monochrome))
             }
             return true
         }
@@ -75,7 +75,8 @@ enum ArcStatusImage {
         return p
     }
 
-    private static func fillColor(for status: UsageStatus) -> NSColor {
+    private static func fillColor(for status: UsageStatus, monochrome: Bool) -> NSColor {
+        if monochrome { return .secondaryLabelColor }
         switch status {
         case .safe:                return .labelColor
         case .medium:              return .systemOrange
