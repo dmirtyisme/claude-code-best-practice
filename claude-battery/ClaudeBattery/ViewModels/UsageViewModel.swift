@@ -28,7 +28,8 @@ final class UsageViewModel: ObservableObject {
     /// Arc image representing current usage.
     var menuBarImage: NSImage {
         guard let data = usageData else { return ArcStatusImage.makeIdle() }
-        return ArcStatusImage.make(percent: data.usagePercent, status: data.status)
+        let mono = prefsManager.preferences.gaugeColorMode == .monochrome
+        return ArcStatusImage.make(percent: data.usagePercent, status: data.status, monochrome: mono)
     }
 
     /// Compact text label shown to the right of the arc.
@@ -36,9 +37,11 @@ final class UsageViewModel: ObservableObject {
         guard let data = usageData else { return NSAttributedString() }
         let text = menuBarLabelText(for: data)
         guard !text.isEmpty else { return NSAttributedString() }
+        let mono = prefsManager.preferences.gaugeColorMode == .monochrome
+        let color: NSColor = mono ? .secondaryLabelColor : menuBarLabelColor(for: data.status)
         return NSAttributedString(string: text, attributes: [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
-            .foregroundColor: menuBarLabelColor(for: data.status)
+            .foregroundColor: color
         ])
     }
 
