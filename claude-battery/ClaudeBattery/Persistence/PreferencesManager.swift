@@ -7,7 +7,7 @@ final class PreferencesManager: ObservableObject {
     private enum Key: String {
         case dataSource, displayMode, refreshInterval, launchAtLogin
         case showPromptEstimates, manualPlan, manualCustomTokens
-        case manualUsedTokens, manualResetDate, claudeCodePath
+        case manualUsedTokens, manualResetDate, claudeCodePath, gaugeColorMode
     }
 
     @Published var preferences = AppPreferences() {
@@ -52,6 +52,9 @@ final class PreferencesManager: ObservableObject {
             p.claudeCodePath = path
         }
 
+        if let raw = defaults.string(forKey: Key.gaugeColorMode.rawValue),
+           let v = GaugeColorMode(rawValue: raw) { p.gaugeColorMode = v }
+
         preferences = p
     }
 
@@ -67,6 +70,7 @@ final class PreferencesManager: ObservableObject {
         defaults.set(p.manualUsedTokens, forKey: Key.manualUsedTokens.rawValue)
         defaults.set(p.manualResetDate, forKey: Key.manualResetDate.rawValue)
         defaults.set(p.claudeCodePath, forKey: Key.claudeCodePath.rawValue)
+        defaults.set(p.gaugeColorMode.rawValue, forKey: Key.gaugeColorMode.rawValue)
     }
 
     // Convenience mutators to avoid full-struct replacement at call sites
