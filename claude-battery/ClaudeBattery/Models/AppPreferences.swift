@@ -105,6 +105,18 @@ enum ClaudePlan: String, CaseIterable, Identifiable {
     }
 }
 
+enum GaugeColorMode: String, CaseIterable, Identifiable {
+    case adaptive   = "adaptive"
+    case monochrome = "monochrome"
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .adaptive:   return "Adaptive"
+        case .monochrome: return "Monochrome"
+        }
+    }
+}
+
 struct AppPreferences {
     var dataSource: DataSourceType = .hookBridge
     var displayMode: DisplayMode   = .smart
@@ -120,6 +132,7 @@ struct AppPreferences {
 
     // Claude Code mode settings
     var claudeCodePath: String = "~/.claude/projects"
+    var gaugeColorMode: GaugeColorMode = .adaptive
 
     var effectiveTotalTokens: Int {
         if dataSource == .manual {
