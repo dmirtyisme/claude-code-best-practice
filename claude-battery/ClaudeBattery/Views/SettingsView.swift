@@ -24,6 +24,8 @@ struct SettingsView: View {
                     Divider()
                     displaySection
                     Divider()
+                    gaugeColorSection
+                    Divider()
                     manualModeSection
                     Divider()
                     behaviourSection
@@ -113,17 +115,13 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader("Menu Bar Display")
             ForEach(DisplayMode.allCases) { mode in
-                HStack {
+                HStack(spacing: 10) {
                     Image(systemName: prefsManager.preferences.displayMode == mode
                           ? "checkmark.circle.fill" : "circle")
                         .foregroundColor(prefsManager.preferences.displayMode == mode ? .accentColor : .secondary)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(mode.displayName).font(.callout)
-                        Text(mode.example)
-                            .font(.caption.monospaced())
-                            .foregroundColor(.secondary)
-                    }
+                    Text(mode.displayName).font(.callout)
                     Spacer()
+                    menuBarPreview(for: mode)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -131,6 +129,75 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Gauge Color
+
+    private var gaugeColorSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("Gauge Color")
+            ForEach(GaugeColorMode.allCases) { colorMode in
+                HStack(spacing: 10) {
+                    Image(systemName: prefsManager.preferences.gaugeColorMode == colorMode
+                          ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(prefsManager.preferences.gaugeColorMode == colorMode ? .primary : .secondary)
+                    Text(colorMode.displayName).font(.callout)
+                    Spacer()
+                    gaugeColorPreview(for: colorMode)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    prefsManager.update { $0.gaugeColorMode = colorMode }
+                }
+            }
+        }
+    }
+
+    // MARK: - Preview helpers
+
+    @ViewBuilder
+    private func menuBarPreview(for mode: DisplayMode) -> some View {
+        let mono = prefsManager.preferences.gaugeColorMode == .monochrome
+        let arc = ArcStatusImage.make(percent: 0.72, status: .medium, monochrome: mono, size: 16)
+        let label: String = {
+            switch mode {
+            case .percentage: return "72%"
+            case .countdown:  return "3:42"
+            case .compact:    return ""
+            case .smart:      return "72% · 3:42"
+            }
+        }()
+        let textColor: Color = mono ? Color(NSColor.secondaryLabelColor) : .orange
+        HStack(spacing: 3) {
+            Image(nsImage: arc)
+                .frame(width: 16, height: 16)
+            if !label.isEmpty {
+                Text(label)
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundColor(textColor)
+            }
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(3)
+    }
+
+    @ViewBuilder
+    private func gaugeColorPreview(for colorMode: GaugeColorMode) -> some View {
+        let mono = colorMode == .monochrome
+        let arc = ArcStatusImage.make(percent: 0.72, status: .medium, monochrome: mono, size: 16)
+        HStack(spacing: 3) {
+            Image(nsImage: arc)
+                .frame(width: 16, height: 16)
+            Text("72%")
+                .font(.system(size: 12).monospacedDigit())
+                .foregroundColor(mono ? Color(NSColor.secondaryLabelColor) : .orange)
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(3)
     }
 
     // MARK: - Manual Mode
